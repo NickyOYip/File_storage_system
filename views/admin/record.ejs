@@ -143,18 +143,20 @@
                 <table class="users-table">
                     <thead>
                         <tr>
+                            <th>ID</th>
                             <th>Email</th>
                             <th>Role</th>
-                            <th>Files</th>
+                            <th>File Count</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <% users.forEach(user => { %>
                             <tr>
+                                <td><%= user.userId %></td>
                                 <td><%= user.email %></td>
                                 <td><%= user.role %></td>
-                                <td><%= user.fileCount %> files</td>
+                                <td><%= user.fileCount %></td>
                                 <td>
                                     <form action="/admin/users/<%= user._id %>/delete" method="POST" style="display: inline;">
                                         <button type="submit" class="action-btn delete-btn">Delete</button>

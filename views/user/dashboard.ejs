@@ -4,6 +4,8 @@
     <title>User Dashboard - File Storage System</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -211,6 +213,34 @@
         window.onclick = function(event) {
             if (event.target == modal) {
                 modal.style.display = 'none';
+            }
+        }
+
+        // Check if we're accessing this page after logging out
+        if (!window.performance.navigation.type === 2) {
+            // Check session status
+            fetch('/session-check')
+                .then(response => {
+                    if (!response.ok) {
+                        window.location.href = '/login';
+                    }
+                })
+                .catch(() => {
+                    window.location.href = '/login';
+                });
+        }
+
+        // Prevent back button
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                window.location.reload();
+            }
+        });
+
+        // Disable browser cache for this page
+        window.onload = function() {
+            if (window.history.replaceState) {
+                window.history.replaceState(null, null, window.location.href);
             }
         }
     </script>

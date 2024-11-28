@@ -26,11 +26,15 @@ app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(session({
-    secret: 'your-secret-key',
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: false },
-    name: 'connect.sid'
+    cookie: { 
+        secure: false,
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    },
+    name: 'sessionId'
 }));
 
 console.log('Session middleware configured');
@@ -47,19 +51,19 @@ const upload = multer({
 // Authentication Middleware with more logging
 const isAuthenticated = (req, res, next) => {
     console.log('\n=== AUTH CHECK ===');
-    console.log('Checking authentication');
-    console.log('Session exists:', !!req.session);
-    console.log('Session data:', req.session);
     
-    if (!req.session.user) {
+    if (!req.session || !req.session.user) {
         console.log('No user in session, redirecting to login');
         return res.redirect('/login');
     }
     
-    console.log('User authenticated, proceeding...');
-    console.log('=== AUTH CHECK END ===\n');
+    // Add strict cache control headers
+    res.set({
+        'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+        'Pragma': 'no-cache',
+        'Expires': '-1'
+    });
     
-    res.set('Cache-Control', 'no-cache, private, no-store, must-revalidate, max-stale=0, post-check=0, pre-check=0');
     next();
 };
 
@@ -138,32 +142,19 @@ app.post('/login', async (req, res) => {
 
 // Logout route with extensive logging
 app.post('/logout', (req, res) => {
-    console.log('\n=== LOGOUT INITIATED ===');
-    
-    // Store session info for logging
-    const sessionInfo = {
-        id: req.sessionID,
-        data: req.session
-    };
-    
-    console.log('Current session before logout:', sessionInfo);
-    
-    // Destroy session
     req.session.destroy((err) => {
         if(err) {
             console.error('Logout error:', err);
             return res.status(500).send('Logout failed');
         }
         
-        console.log('Session destroyed');
-        res.clearCookie('connect.sid');
-        console.log('Cookie cleared');
+        res.set({
+            'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+            'Pragma': 'no-cache',
+            'Expires': '-1'
+        });
         
-        // Log final state
-        console.log('Final session state: null');
-        console.log('=== LOGOUT COMPLETED ===\n');
-        
-        // Redirect to login
+        res.clearCookie('sessionId'); // Match the cookie name from session config
         res.redirect('/login');
     });
 });
@@ -352,19 +343,17 @@ app.get('/admin/dashboard', isAdmin, async (req, res) => {
 app.get('/admin/record', isAdmin, async (req, res) => {
     try {
         // Get all users
-        const users = await User.find({});
+        const users = await User.find({}).sort({ userId: 1 });
         
-        // Get file counts for each user with proper string comparison
+        // Get file counts for each user
         const usersWithFiles = await Promise.all(users.map(async (user) => {
-            // Convert user._id to string for comparison
             const fileCount = await File.countDocuments({ 
                 uploadedBy: user._id.toString() 
             });
             
-            console.log(`File count for ${user.email}:`, fileCount); // Debug log
-            
             return {
                 _id: user._id,
+                userId: user.userId || 'N/A',
                 email: user.email,
                 role: user.role,
                 fileCount: fileCount
@@ -396,17 +385,21 @@ app.get('/admin/createuser', isAdmin, (req, res) => {
 });
 
 app.post('/admin/createuser', isAdmin, async (req, res) => {
-    res.set({
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-        'Surrogate-Control': 'no-store'
-    });
-
     try {
         const { email, password, role } = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
-        await User.create({ email, password: hashedPassword, role });
+        
+        // Get next sequential ID
+        const lastUser = await User.findOne().sort({ userId: -1 });
+        const nextUserId = lastUser ? (lastUser.userId + 1) : 1;
+
+        await User.create({ 
+            userId: nextUserId,
+            email, 
+            password: hashedPassword, 
+            role 
+        });
+        
         res.redirect('/admin/record');
     } catch (err) {
         console.error('Error creating user:', err);
@@ -451,11 +444,17 @@ app.post('/register', async (req, res) => {
             return res.status(400).send('Email already registered');
         }
 
+        // Get next sequential ID
+        const lastUser = await User.findOne().sort({ userId: -1 });
+        const nextUserId = lastUser ? (lastUser.userId + 1) : 1;
+        console.log('Next User ID:', nextUserId);
+
         // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // Create new user
         const newUser = new User({
+            userId: nextUserId,
             email,
             password: hashedPassword,
             role: isAdmin ? 'admin' : 'user'
@@ -463,6 +462,7 @@ app.post('/register', async (req, res) => {
 
         await newUser.save();
         console.log('User registered successfully:', {
+            userId: newUser.userId,
             email: newUser.email,
             role: newUser.role
         });
@@ -624,5 +624,23 @@ app.post('/files/rename', isAuthenticated, async (req, res) => {
     } catch (err) {
         console.error('Rename error:', err);
         res.status(500).json({ error: 'Error renaming file' });
+    }
+});
+
+// Temporary route to update existing users with IDs (remove after use)
+app.get('/admin/update-user-ids', isAdmin, async (req, res) => {
+    try {
+        const users = await User.find({ userId: { $exists: false } }).sort({ _id: 1 });
+        let nextId = 1;
+        
+        for (const user of users) {
+            user.userId = nextId++;
+            await user.save();
+        }
+        
+        res.send('User IDs updated successfully');
+    } catch (err) {
+        console.error('Error updating user IDs:', err);
+        res.status(500).send('Error updating user IDs');
     }
 });
