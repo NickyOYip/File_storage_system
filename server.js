@@ -6,6 +6,7 @@ const multer = require('multer');
 const path = require('path');
 const bcrypt = require('bcrypt');
 const fs = require('fs');
+const cors = require('cors');
 
 const app = express();
 
@@ -474,7 +475,7 @@ app.post('/register', async (req, res) => {
     }
 });
 // Database connection
-mongoose.connect(process.env.MONGODB_URI)
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/your_database')
     .then(() => console.log('Connected to MongoDB'))
     .catch(err => console.error('MongoDB connection error:', err));
 
@@ -841,3 +842,18 @@ app.get('/api/fix-users', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+
+// Add environment variables support
+require('dotenv').config();
+
+// Update MongoDB connection
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/your_database');
+
+// Update port for cloud deployment
+const port = process.env.PORT || 3000;
+
+// Update cors settings if needed
+app.use(cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true
+}));

@@ -1,71 +1,142 @@
 File Storage System
-Group 
+Group 55
 Name: 
+Ieong Kai Yip 13314481
+Wong Ka Ho 13251975
+Tai Tsz Hin 13275125
 
-
-Application link: 
+Application link: https://s381f-file-storage-system.onrender.com/
 
 ********************************************
 # Login
-Through the login interface, user can access the human resources management system by entering username and password.
+Through the login interface, user can access the file storage system by entering email and password.
+Example admin account:
 {
-Username: admin 
-Password: password
+Email: nickyieongo@gmail.com
+Password: 123
+}
+Example user account:
+{
+Email: s1331448@live.hkmu.edu.hk
+Password: 123
 }
 
-After successful login, userid is sotred in session.
+also you can register a new account by clicking register.
 
+After successful login, userId is stored in session.
 ********************************************
 # Logout
-In the Home page, each user can log out the account by clicking logout.
-
+In the Home page, each user can logout the account by clicking logout.
+After successful Logout, session is cleared.
 ********************************************
 # CRUD service
 - Create
--	An employee document contains the following attributes with an example: 
-	1) Employee First Name (Tom)
-	2) Employee Last Name (Tai)
-	3) Employee Telephone (12345678) *telephone number must be 8 digits
-	4) Employee Email (s1234@gmail.com) *must follow format xxxx@xxxx.xxx
-	5) Description (Diligence person)
-
-All attributes are mandatory. Then the newly added emplyee information will be shown at the home page.
-
+- A file document contains the following attributes with an example: 
+    1) File Name (example.jpg)
+    2) File Data (binary data)
+	3) create new user
+All files are stored securely in MongoDB. The newly uploaded file will be shown on the user home page.
+All user are stored securely in MongoDB. All users will be shown on the admin home page.
 ********************************************
 # CRUD service
 -Read
--	1) After login, the home page will list out the basic information of the employee ( Employee First and last Name; Telephone; Email ), clicking the eyes button, the details will be displayed
+- 1) After login, the home page will list out all files uploaded by the user
+     showing: Sequential ID, File Name, Upload Date
 
-	2) Search bar
-	Inputting the keyword in the search bar can filter the employee without the keyword.    
-	If all employees both without the keyword, it will show "No results found".
+  2) Search functionality
+     Users can view their files and download them
+     If no files are found, it will show "No files found"
 
+All data are get from MongoDB.
 ********************************************
 # CRUD service
 - Edit & Update 
--	The user can edit and update all employee information by clicking the yellow pencil button.
--	An employee document contains the following attributes with an example: 
-	1) Employee First Name (Tom)
-	2) Employee Last Name (Tin)
-	3) Employee Telephone (21345678) *telephone number must be 8 digits
-	4) Employee Email (s12345@gmail.com) *must follow format xxxx@xxxx.xxxx
-	5) Description (Diligence person)
+- Users can rename their files with:
+    1) Original File Name (example.jpg)
+    2) New File Name (renamed.jpg)
 
-	For example, we edited the last name, email, and telephone number and updated to MongoDB.
+Files maintain their original Sequential ID and Upload Date after renaming.
+
 
 ********************************************
 # CRUD service
 -Delete
--	The user can delete the employee information through the red button in the home page.
-        Or delete in editing mode by pressing the red button.
+- Users can delete their files through the delete button on the home page
+- admin can delete any user from the admin home page
 
 ********************************************
 # Restful
-	There is req and res in our js file. And the GET, POST, PUT, Delete, We used Restful to use CRUD.
+The system provides RESTful API endpoints:
+
+1. GET /api/files/:email - Read all files
+   Success Example:
+   ```
+   GET /api/files/s1331448@live.hkmu.edu.hk
+   ```
+   Error Example:
+   ```
+   GET /api/files/nonexistent@email.com
+   ```
+
+2. POST /api/users - Create new user
+   Success Example:
+   ```
+   POST /api/users
+   Body: {
+       "email": "test@example.com",
+       "password": "password123",
+       "role": "user"
+   }
+   ```
+   Error Example:
+   ```
+   POST /api/users
+   Body: {
+       "email": "s1331448@live.hkmu.edu.hk",
+       "password": "123",
+       "role": "user"
+   }
+   ```
+
+3. PUT /api/files - Update file name
+   Success Example:
+   ```
+   PUT /api/files
+   Body: {
+       "email": "s1331448@live.hkmu.edu.hk",
+       "fileId": "67489fba3d28950e56419832_4",
+       "newFileName": "renamed_file.jpg"
+   }
+   ```
+   Error Example:
+   ```
+   PUT /api/files
+   Body: {
+       "email": "s1331448@live.hkmu.edu.hk",
+       "fileId": "invalid_file_id",
+       "newFileName": "new.jpg"
+   }
+   ```
+
+4. DELETE /api/files - Delete file
+   Success Example:
+   ```
+   DELETE /api/files
+   Body: {
+       "email": "s1331448@live.hkmu.edu.hk",
+       "fileId": "67489fba3d28950e56419832_4"
+   }
+   ```
+   Error Example:
+   ```
+   DELETE /api/files
+   Body: {
+       "email": "s1331448@live.hkmu.edu.hk",
+       "fileId": "nonexistent_file"
+   }
+   ```
+
+Each endpoint follows RESTful principles with proper request/response handling.
 
 ********************************************
-
-
-
-
 
