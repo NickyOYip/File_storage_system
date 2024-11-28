@@ -644,3 +644,200 @@ app.get('/admin/update-user-ids', isAdmin, async (req, res) => {
         res.status(500).send('Error updating user IDs');
     }
 });
+
+// Add these routes to your server.js
+
+// 1. READ - GET API to read all files for a user by email
+app.get('/api/files/:email', async (req, res) => {
+    try {
+        const decodedEmail = decodeURIComponent(req.params.email);
+        console.log('Searching for files with email:', decodedEmail); // Debug log
+
+        const user = await User.findOne({ email: decodedEmail });
+        console.log('Found user:', user); // Debug log
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const files = await File.find({ uploadedBy: user._id })
+            .select('sequentialId originalName uploadDate')
+            .sort({ sequentialId: 1 });
+
+        console.log('Found files:', files); // Debug log
+
+        res.json({
+            success: true,
+            data: files.map(file => ({
+                sequentialId: file.sequentialId,
+                fileName: file.originalName,
+                uploadDate: file.uploadDate
+            }))
+        });
+    } catch (err) {
+        console.error('API Read Error:', err);
+        res.status(500).json({ 
+            error: 'Error fetching files',
+            details: err.message 
+        });
+    }
+});
+
+// 2. CREATE - POST API to create a new user
+app.post('/api/users', async (req, res) => {
+    try {
+        const { email, password, role } = req.body;
+
+        console.log('Creating user with email:', email); // Debug log
+
+        // Validate required fields
+        if (!email || !password) {
+            return res.status(400).json({ 
+                error: 'Email and password are required'
+            });
+        }
+
+        // Check if user already exists
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({ error: 'Email already registered' });
+        }
+
+        // Find the highest userId with explicit number handling
+        const lastUser = await User.findOne({}, { userId: 1 }).sort({ userId: -1 });
+        let nextUserId = 1; // Default to 1 if no users exist
+
+        if (lastUser && typeof lastUser.userId === 'number') {
+            nextUserId = lastUser.userId + 1;
+        }
+
+        console.log('Generated nextUserId:', nextUserId); // Debug log
+
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Create new user with explicit number type
+        const newUser = new User({
+            userId: parseInt(nextUserId, 10), // Ensure it's an integer
+            email: email,
+            password: hashedPassword,
+            role: role || 'user'
+        });
+
+        console.log('Attempting to save user with userId:', newUser.userId); // Debug log
+
+        const savedUser = await newUser.save();
+
+        console.log('User saved successfully with userId:', savedUser.userId); // Debug log
+
+        res.status(201).json({
+            success: true,
+            data: {
+                userId: savedUser.userId,
+                email: savedUser.email,
+                role: savedUser.role
+            }
+        });
+    } catch (err) {
+        console.error('API Create Error:', err);
+        res.status(500).json({ 
+            error: 'Error creating user',
+            details: err.message
+        });
+    }
+});
+
+// 3. UPDATE - PUT API to update file name
+app.put('/api/files', async (req, res) => {
+    try {
+        const { email, fileId, newFileName } = req.body;
+
+        // Find user
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Find and update file
+        const file = await File.findOne({ 
+            fileId: fileId,
+            uploadedBy: user._id
+        });
+
+        if (!file) {
+            return res.status(404).json({ error: 'File not found' });
+        }
+
+        file.originalName = newFileName;
+        await file.save();
+
+        res.json({
+            success: true,
+            data: {
+                fileId: file.fileId,
+                newFileName: file.originalName
+            }
+        });
+    } catch (err) {
+        console.error('API Update Error:', err);
+        res.status(500).json({ error: 'Error updating file' });
+    }
+});
+
+// 4. DELETE - DELETE API to delete a file
+app.delete('/api/files', async (req, res) => {
+    try {
+        const { email, fileId } = req.body;
+
+        // Find user
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Find and delete file
+        const file = await File.findOneAndDelete({ 
+            fileId: fileId,
+            uploadedBy: user._id
+        });
+
+        if (!file) {
+            return res.status(404).json({ error: 'File not found' });
+        }
+
+        res.json({
+            success: true,
+            message: 'File deleted successfully',
+            data: {
+                fileId: fileId,
+                fileName: file.originalName
+            }
+        });
+    } catch (err) {
+        console.error('API Delete Error:', err);
+        res.status(500).json({ error: 'Error deleting file' });
+    }
+});
+
+// Temporary route to fix existing users without userId
+app.get('/api/fix-users', async (req, res) => {
+    try {
+        // Find all users without userId
+        const users = await User.find({ userId: { $exists: false } });
+        console.log('Found users without userId:', users.length);
+
+        // Update each user with a sequential userId
+        for (let i = 0; i < users.length; i++) {
+            await User.findByIdAndUpdate(users[i]._id, {
+                $set: { userId: i + 1 }
+            });
+        }
+
+        res.json({
+            success: true,
+            message: `Updated ${users.length} users with sequential IDs`
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
