@@ -38,6 +38,8 @@ After successful Logout, session is cleared.
 All files are stored securely in MongoDB. The newly uploaded file will be shown on the user home page.
 All user are stored securely in MongoDB. All users will be shown on the admin home page.
 ********************************************
+#All uploaded files should not be larger than 1MB(within 50kb is recommended)
+********************************************
 # CRUD service
 -Read
 - 1) After login, the home page will list out all files uploaded by the user
