@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit File - File Storage System</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .file-info { margin-bottom: 20px; }
+        .button { padding: 10px 15px; text-decoration: none; margin-right: 10px; }
+        .save { background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+        .back { background-color: #666; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Edit File</h1>
+        <div class="file-info">
+            <p><strong>File Name:</strong> <%= file.originalName %></p>
+            <p><strong>Size:</strong> <%= (file.size / 1024).toFixed(2) %> KB</p>
+            <p><strong>Upload Date:</strong> <%= file.uploadDate.toLocaleDateString() %></p>
+        </div>
+        <form action="/files/<%= file._id %>/edit" method="POST">
+            <button type="submit" class="button save">Save Changes</button>
+            <a href="/user/dashboard" class="button back">Back</a>
+        </form>
+    </div>
+</body>
+</html>

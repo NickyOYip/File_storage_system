@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard - File Storage System</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .menu { list-style: none; padding: 0; }
+        .menu-item { margin-bottom: 10px; }
+        .button { padding: 10px 15px; text-decoration: none; display: inline-block; }
+        .primary { background-color: #4CAF50; color: white; }
+        .secondary { background-color: #2196F3; color: white; }
+        .danger { background-color: #f44336; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Admin Dashboard</h1>
+        <ul class="menu">
+            <li class="menu-item">
+                <a href="/admin/record" class="button secondary">View User Records</a>
+            </li>
+            <li class="menu-item">
+                <a href="/admin/createuser" class="button primary">Create New User</a>
+            </li>
+            <li class="menu-item">
+                <a href="/logout" class="button danger">Logout</a>
+            </li>
+        </ul>
+    </div>
+</body>
+</html>

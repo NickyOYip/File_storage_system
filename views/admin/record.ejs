@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>User Records - File Storage System</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .user-list { list-style: none; padding: 0; }
+        .user-item { padding: 10px; border-bottom: 1px solid #ddd; }
+        .button { padding: 8px 15px; text-decoration: none; margin-right: 10px; }
+        .back { background-color: #666; color: white; }
+        .delete { color: #f44336; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>User Records</h1>
+        <ul class="user-list">
+            <% users.forEach(function(user) { %>
+                <li class="user-item">
+                    <div><strong>Email:</strong> <%= user.email %></div>
+                    <div><strong>Role:</strong> <%= user.role %></div>
+                    <div><strong>Created:</strong> <%= user.createdAt.toLocaleDateString() %></div>
+                    <form action="/admin/users/<%= user._id %>/delete" method="POST" style="display: inline;">
+                        <button type="submit" class="delete">Delete</button>
+                    </form>
+                </li>
+            <% }); %>
+        </ul>
+        <a href="/admin/dashboard" class="button back">Back to Dashboard</a>
+    </div>
+</body>
+</html>
