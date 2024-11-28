@@ -36,15 +36,7 @@ app.use(session({
 console.log('Session middleware configured');
 
 // Configure multer for file upload
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'public/uploads/') // Update path to match your structure
-    },
-    filename: function (req, file, cb) {
-        cb(null, Date.now() + '-' + file.originalname)
-    }
-});
-
+const storage = multer.memoryStorage();
 const upload = multer({ 
     storage: storage,
     limits: {
@@ -251,21 +243,33 @@ app.post('/upload', isAuthenticated, upload.single('file'), async (req, res) => 
             return res.redirect('/user/dashboard');
         }
 
-        const userId = new mongoose.Types.ObjectId(req.session.user._id);
-        console.log('Creating file with user ID:', userId);
+        const userId = req.session.user._id;
+        
+        // Get next sequential ID for this user
+        const nextSeqId = await File.getNextSequentialId(userId);
+        
+        // Create a combined fileId (userId_sequentialId)
+        const fileId = `${userId}_${nextSeqId}`;
 
         const newFile = new File({
-            filename: req.file.filename,
+            fileId: fileId,
+            sequentialId: nextSeqId,
+            filename: req.file.originalname,
             originalName: req.file.originalname,
             mimetype: req.file.mimetype,
             size: req.file.size,
-            uploadedBy: req.session.user._id,
+            data: req.file.buffer,
+            uploadedBy: userId,
             uploadDate: new Date()
         });
 
-        console.log('New file object:', newFile);
+        console.log('New file object:', {
+            ...newFile.toObject(),
+            data: 'Buffer data hidden for logging'
+        });
+        
         const savedFile = await newFile.save();
-        console.log('Saved file:', savedFile);
+        console.log('File saved successfully');
 
         res.redirect('/user/dashboard');
     } catch (err) {
@@ -277,63 +281,51 @@ app.post('/upload', isAuthenticated, upload.single('file'), async (req, res) => 
 
 app.get('/download/:fileId', isAuthenticated, async (req, res) => {
     try {
-        console.log('Download attempt for file:', req.params.fileId);
-        
         const file = await File.findById(req.params.fileId);
         if (!file) {
-            console.log('File not found in database');
             return res.status(404).send('File not found');
         }
 
-        console.log('File found:', file);
-
-        // Verify file ownership
+        // Verify ownership
         if (file.uploadedBy.toString() !== req.session.user._id.toString()) {
-            console.log('Unauthorized access attempt');
             return res.status(403).send('Unauthorized');
         }
 
-        // Construct the full file path using filename from the database
-        const filePath = path.join(__dirname, 'public', 'uploads', file.filename);
-        console.log('Attempting to download from path:', filePath);
-
-        // Check if file exists
-        if (!fs.existsSync(filePath)) {
-            console.log('File not found at path:', filePath);
-            return res.status(404).send('File not found on server');
-        }
-
-        // Send file with original name
-        res.download(filePath, file.originalName, (err) => {
-            if (err) {
-                console.error('Download error:', err);
-                if (!res.headersSent) {
-                    res.status(500).send('Error downloading file');
-                }
-            } else {
-                console.log('File downloaded successfully');
-            }
+        // Set headers for file download
+        res.set({
+            'Content-Type': file.mimetype,
+            'Content-Disposition': `attachment; filename="${file.originalName}"`,
+            'Content-Length': file.size
         });
 
+        // Send the file data
+        res.send(file.data);
+
     } catch (err) {
-        console.error('Download route error:', err);
-        res.status(500).send('Error processing download request');
+        console.error('Download error:', err);
+        res.status(500).send('Error downloading file');
     }
 });
 
 app.post('/files/:fileId/delete', isAuthenticated, async (req, res) => {
     try {
         const file = await File.findById(req.params.fileId);
-        if (!file) return res.status(404).send('File not found');
-        
-        // Delete file from storage
-        fs.unlinkSync(path.join(__dirname, 'public/uploads', file.filename));
-        // Delete file record from database
+        if (!file) {
+            return res.status(404).send('File not found');
+        }
+
+        // Verify ownership
+        if (file.uploadedBy.toString() !== req.session.user._id.toString()) {
+            return res.status(403).send('Unauthorized');
+        }
+
+        // Delete file from database
         await File.findByIdAndDelete(req.params.fileId);
         
         res.redirect('/user/dashboard');
     } catch (err) {
-        res.status(500).send('Delete failed');
+        console.error('Delete error:', err);
+        res.status(500).send('Error deleting file');
     }
 });
 
@@ -603,5 +595,34 @@ app.get('/debug-files', isAdmin, async (req, res) => {
     } catch (err) {
         console.error('Debug error:', err);
         res.status(500).json({ error: err.message });
+    }
+});
+
+// Add this route to handle file renaming
+app.post('/files/rename', isAuthenticated, async (req, res) => {
+    try {
+        const { fileId, newFileName } = req.body;
+        
+        // Find the file and verify ownership
+        const file = await File.findById(fileId);
+        
+        if (!file) {
+            return res.status(404).json({ error: 'File not found' });
+        }
+
+        // Verify file ownership
+        if (file.uploadedBy.toString() !== req.session.user._id.toString()) {
+            return res.status(403).json({ error: 'Unauthorized' });
+        }
+
+        // Update the file name
+        file.originalName = newFileName;
+        await file.save();
+
+        // Redirect back to dashboard
+        res.redirect('/user/dashboard');
+    } catch (err) {
+        console.error('Rename error:', err);
+        res.status(500).json({ error: 'Error renaming file' });
     }
 });
