@@ -35,14 +35,22 @@ app.use(session({
 
 console.log('Session middleware configured');
 
-// Multer setup for file uploads
+// Configure multer for file upload
 const storage = multer.diskStorage({
-    destination: './public/uploads/',
-    filename: (req, file, cb) => {
-        cb(null, `${Date.now()}-${file.originalname}`);
+    destination: function (req, file, cb) {
+        cb(null, 'public/uploads/') // Update path to match your structure
+    },
+    filename: function (req, file, cb) {
+        cb(null, Date.now() + '-' + file.originalname)
     }
 });
-const upload = multer({ storage: storage });
+
+const upload = multer({ 
+    storage: storage,
+    limits: {
+        fileSize: 10 * 1024 * 1024 // 10MB limit
+    }
+});
 
 // Authentication Middleware with more logging
 const isAuthenticated = (req, res, next) => {
@@ -176,13 +184,13 @@ app.get('/session-check', (req, res) => {
 // User Routes
 app.get('/user/dashboard', isAuthenticated, async (req, res) => {
     try {
-        console.log('Accessing user dashboard');
-        console.log('User ID for query:', req.session.user._id);
+        const userId = new mongoose.Types.ObjectId(req.session.user._id);
+        console.log('Looking for files with uploadedBy:', userId);
 
-        // Get user's files with debug logging
-        const files = await File.find({ user: req.session.user._id });
-        console.log('Query result:', files);
-        console.log('Files found:', files.length);
+        const files = await File.find({ uploadedBy: userId })
+            .sort({ uploadDate: -1 });
+
+        console.log('Found files:', JSON.stringify(files, null, 2));
 
         res.render('user/dashboard', {
             user: req.session.user,
@@ -226,41 +234,73 @@ app.post('/upload', isAuthenticated, upload.single('file'), async (req, res) => 
             return res.redirect('/user/dashboard');
         }
 
-        console.log('File upload attempt:', req.file);
-        console.log('User ID:', req.session.user._id);
+        const userId = new mongoose.Types.ObjectId(req.session.user._id);
+        console.log('Creating file with user ID:', userId);
 
-        // Create new file document with user ID
         const newFile = new File({
             filename: req.file.filename,
             originalName: req.file.originalname,
-            path: req.file.path,
+            mimetype: req.file.mimetype,
             size: req.file.size,
-            uploadDate: new Date(),
-            user: req.session.user._id
+            uploadedBy: userId,  // Make sure this is set
+            uploadDate: new Date()
         });
 
-        await newFile.save();
-        console.log('File saved to database:', newFile);
+        console.log('New file object:', newFile);
+        const savedFile = await newFile.save();
+        console.log('Saved file:', savedFile);
 
         res.redirect('/user/dashboard');
     } catch (err) {
         console.error('Upload error:', err);
+        console.error('Error details:', err.message);
         res.status(500).send('Error uploading file');
     }
 });
 
 app.get('/download/:fileId', isAuthenticated, async (req, res) => {
     try {
-        const file = await File.findById(req.params.fileId);
+        console.log('Download attempt for file:', req.params.fileId);
         
-        if (!file || file.user.toString() !== req.session.user._id.toString()) {
+        const file = await File.findById(req.params.fileId);
+        if (!file) {
+            console.log('File not found in database');
             return res.status(404).send('File not found');
         }
 
-        res.download(file.path, file.originalName);
+        console.log('File found:', file);
+
+        // Verify file ownership
+        if (file.uploadedBy.toString() !== req.session.user._id.toString()) {
+            console.log('Unauthorized access attempt');
+            return res.status(403).send('Unauthorized');
+        }
+
+        // Construct the full file path using filename from the database
+        const filePath = path.join(__dirname, 'public', 'uploads', file.filename);
+        console.log('Attempting to download from path:', filePath);
+
+        // Check if file exists
+        if (!fs.existsSync(filePath)) {
+            console.log('File not found at path:', filePath);
+            return res.status(404).send('File not found on server');
+        }
+
+        // Send file with original name
+        res.download(filePath, file.originalName, (err) => {
+            if (err) {
+                console.error('Download error:', err);
+                if (!res.headersSent) {
+                    res.status(500).send('Error downloading file');
+                }
+            } else {
+                console.log('File downloaded successfully');
+            }
+        });
+
     } catch (err) {
-        console.error('Download error:', err);
-        res.status(500).send('Error downloading file');
+        console.error('Download route error:', err);
+        res.status(500).send('Error processing download request');
     }
 });
 
@@ -432,5 +472,29 @@ app.get('/test-files', isAuthenticated, async (req, res) => {
     } catch (err) {
         console.error('Test query error:', err);
         res.status(500).send('Error testing files');
+    }
+});
+
+// Debug route to check database contents
+app.get('/debug-db', isAuthenticated, async (req, res) => {
+    try {
+        // Get all files
+        const files = await File.find({});
+        // Get all users
+        const users = await User.find({});
+        
+        console.log('=== DATABASE DEBUG ===');
+        console.log('Files:', JSON.stringify(files, null, 2));
+        console.log('Users:', JSON.stringify(users, null, 2));
+        console.log('Current user ID:', req.session.user._id);
+        
+        res.json({
+            files: files,
+            users: users,
+            currentUser: req.session.user._id
+        });
+    } catch (err) {
+        console.error('Debug error:', err);
+        res.status(500).json({ error: err.message });
     }
 });
