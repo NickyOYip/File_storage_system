@@ -1,14 +1,8 @@
 const mongoose = require('mongoose');
 
 const fileSchema = new mongoose.Schema({
-  filename: {
-    type: String,
-    required: true
-  },
-  originalName: {
-    type: String,
-    required: true
-  },
+  filename: String,
+  originalName: String,
   mimetype: String,
   size: Number,
   uploadedBy: {

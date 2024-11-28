@@ -1,33 +1,218 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>User Records - File Storage System</title>
+    <title>User Records - Admin Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <style>
-        body { font-family: Arial, sans-serif; margin: 40px; }
-        .container { max-width: 800px; margin: 0 auto; }
-        .user-list { list-style: none; padding: 0; }
-        .user-item { padding: 10px; border-bottom: 1px solid #ddd; }
-        .button { padding: 8px 15px; text-decoration: none; margin-right: 10px; }
-        .back { background-color: #666; color: white; }
-        .delete { color: #f44336; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .welcome {
+            margin: 0;
+            color: #333;
+            font-size: 24px;
+        }
+        .logout-btn {
+            padding: 10px 20px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .users-table th, 
+        .users-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .users-table th {
+            background-color: #f8f9fa;
+            color: #666;
+            font-weight: 600;
+        }
+        .users-table tr:hover {
+            background-color: #f5f5f5;
+        }
+        .action-btn {
+            padding: 6px 12px;
+            margin: 0 4px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .delete-btn {
+            background-color: #f44336;
+            color: white;
+        }
+        .delete-btn:hover {
+            background-color: #d32f2f;
+        }
+        .create-btn {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        .create-btn:hover {
+            background-color: #45a049;
+        }
+        .back-btn {
+            padding: 10px 20px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        .back-btn:hover {
+            background-color: #1976D2;
+        }
+        .button-group {
+            margin-bottom: 20px;
+        }
+        .no-users {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 16px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>User Records</h1>
-        <ul class="user-list">
-            <% users.forEach(function(user) { %>
-                <li class="user-item">
-                    <div><strong>Email:</strong> <%= user.email %></div>
-                    <div><strong>Role:</strong> <%= user.role %></div>
-                    <div><strong>Created:</strong> <%= user.createdAt.toLocaleDateString() %></div>
-                    <form action="/admin/users/<%= user._id %>/delete" method="POST" style="display: inline;">
-                        <button type="submit" class="delete">Delete</button>
-                    </form>
-                </li>
-            <% }); %>
-        </ul>
-        <a href="/admin/dashboard" class="button back">Back to Dashboard</a>
+        <div class="header">
+            <h1 class="welcome">User Records</h1>
+            <form action="/logout" method="POST" style="display: inline;">
+                <button type="submit" class="logout-btn">Logout</button>
+            </form>
+        </div>
+
+        <div class="content">
+            <div class="button-group">
+                <a href="/admin/dashboard" class="back-btn">Back to Dashboard</a>
+                <a href="/admin/createuser" class="create-btn">Create New User</a>
+            </div>
+
+            <% if (users && users.length > 0) { %>
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Files</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% users.forEach(user => { %>
+                            <tr>
+                                <td><%= user.email %></td>
+                                <td><%= user.role %></td>
+                                <td><%= user.fileCount %> files</td>
+                                <td>
+                                    <form action="/admin/users/<%= user._id %>/delete" method="POST" style="display: inline;">
+                                        <button type="submit" class="action-btn delete-btn">Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            <% } else { %>
+                <div class="no-users">
+                    <p>No users found in the system.</p>
+                </div>
+            <% } %>
+        </div>
     </div>
+
+    <!-- Session check script here -->
+    <script>
+        // Check if we're accessing this page after logging out
+        if (!window.performance.navigation.type === 2) {
+            fetch('/admin/check-session')
+                .then(response => {
+                    if (!response.ok) {
+                        window.location.href = '/login';
+                    }
+                })
+                .catch(() => {
+                    window.location.href = '/login';
+                });
+        }
+
+        // Prevent back button
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                window.location.reload();
+            }
+        });
+
+        // Disable browser cache for this page
+        window.onload = function() {
+            if (window.history.replaceState) {
+                window.history.replaceState(null, null, window.location.href);
+            }
+        }
+
+        // Additional protection: Check session every 5 seconds
+        setInterval(() => {
+            fetch('/admin/check-session')
+                .then(response => {
+                    if (!response.ok) {
+                        window.location.href = '/login';
+                    }
+                })
+                .catch(() => {
+                    window.location.href = '/login';
+                });
+        }, 5000);
+    </script>
 </body>
 </html>

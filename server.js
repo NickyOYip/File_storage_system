@@ -71,9 +71,26 @@ const isAuthenticated = (req, res, next) => {
     next();
 };
 
+// Update the isAdmin middleware to include more logging and better session checks
 const isAdmin = (req, res, next) => {
-    if (req.session.user && req.session.user.role === 'admin') return next();
-    res.status(403).send('Access denied');
+    console.log('\n=== ADMIN AUTH CHECK ===');
+    console.log('Session exists:', !!req.session);
+    console.log('Session user:', req.session?.user);
+    console.log('User role:', req.session?.user?.role);
+
+    if (!req.session || !req.session.user) {
+        console.log('No session or user found - redirecting to login');
+        return res.redirect('/login');
+    }
+
+    if (req.session.user.role !== 'admin') {
+        console.log('User is not admin - access denied');
+        return res.status(403).render('error', { message: 'Access denied. Admin privileges required.' });
+    }
+
+    console.log('Admin access granted');
+    console.log('=== ADMIN AUTH CHECK END ===\n');
+    next();
 };
 
 // Routes
@@ -242,7 +259,7 @@ app.post('/upload', isAuthenticated, upload.single('file'), async (req, res) => 
             originalName: req.file.originalname,
             mimetype: req.file.mimetype,
             size: req.file.size,
-            uploadedBy: userId,  // Make sure this is set
+            uploadedBy: req.session.user._id,
             uploadDate: new Date()
         });
 
@@ -321,37 +338,87 @@ app.post('/files/:fileId/delete', isAuthenticated, async (req, res) => {
 });
 
 // Admin Routes
-app.get('/admin/dashboard', isAdmin, (req, res) => {
-    res.render('admin/dashboard', { user: req.session.user });
+app.get('/admin/dashboard', isAdmin, async (req, res) => {
+    try {
+        // Fetch statistics
+        const stats = {
+            users: await User.countDocuments(),
+            files: await File.countDocuments()
+        };
+
+        // Render the admin dashboard
+        res.render('admin/dashboard', {
+            user: req.session.user,
+            stats: stats
+        });
+    } catch (err) {
+        console.error('Error in admin dashboard:', err);
+        res.status(500).send('Server error');
+    }
 });
 
 app.get('/admin/record', isAdmin, async (req, res) => {
     try {
-        const users = await User.find();
-        res.render('admin/record', { users });
+        // Get all users
+        const users = await User.find({});
+        
+        // Get file counts for each user with proper string comparison
+        const usersWithFiles = await Promise.all(users.map(async (user) => {
+            // Convert user._id to string for comparison
+            const fileCount = await File.countDocuments({ 
+                uploadedBy: user._id.toString() 
+            });
+            
+            console.log(`File count for ${user.email}:`, fileCount); // Debug log
+            
+            return {
+                _id: user._id,
+                email: user.email,
+                role: user.role,
+                fileCount: fileCount
+            };
+        }));
+
+        res.render('admin/record', { 
+            users: usersWithFiles,
+            user: req.session.user
+        });
     } catch (err) {
-        res.status(500).send('Error loading users');
+        console.error('Error fetching records:', err);
+        res.status(500).send('Server error');
     }
 });
 
 app.get('/admin/createuser', isAdmin, (req, res) => {
-    res.render('admin/createuser');
+    // Add cache control headers
+    res.set({
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store'
+    });
+    
+    res.render('admin/createuser', {
+        user: req.session.user // Make sure to pass the user for header display
+    });
 });
 
 app.post('/admin/createuser', isAdmin, async (req, res) => {
+    res.set({
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store'
+    });
+
     try {
         const { email, password, role } = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
-        
-        await User.create({
-            email,
-            password: hashedPassword,
-            role
-        });
-        
+        await User.create({ email, password: hashedPassword, role });
         res.redirect('/admin/record');
     } catch (err) {
-        res.render('admin/createuser', { error: 'User creation failed' });
+        console.error('Error creating user:', err);
+        res.status(500).send('Error creating user');
     }
 });
 
@@ -374,37 +441,46 @@ app.get('/register', (req, res) => {
 // Handle registration
 app.post('/register', async (req, res) => {
     try {
-        const { email, password } = req.body;
-        console.log('Registration attempt:', { email });
+        const { email, password, confirmPassword, isAdmin } = req.body;
         
+        console.log('Registration attempt:', {
+            email,
+            isAdmin: !!isAdmin
+        });
+
+        // Validate passwords match
+        if (password !== confirmPassword) {
+            return res.status(400).send('Passwords do not match');
+        }
+
         // Check if user already exists
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            return res.render('register', { 
-                error: 'Email already registered' 
-            });
+            return res.status(400).send('Email already registered');
         }
 
         // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
-        
+
         // Create new user
-        await User.create({
+        const newUser = new User({
             email,
             password: hashedPassword,
-            role: 'user'
+            role: isAdmin ? 'admin' : 'user'
         });
 
-        console.log('Registration successful:', email);
+        await newUser.save();
+        console.log('User registered successfully:', {
+            email: newUser.email,
+            role: newUser.role
+        });
+
         res.redirect('/login');
     } catch (err) {
         console.error('Registration error:', err);
-        res.render('register', { 
-            error: 'Registration failed' 
-        });
+        res.status(500).send('Error registering user');
     }
 });
-
 // Database connection
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('Connected to MongoDB'))
@@ -492,6 +568,37 @@ app.get('/debug-db', isAuthenticated, async (req, res) => {
             files: files,
             users: users,
             currentUser: req.session.user._id
+        });
+    } catch (err) {
+        console.error('Debug error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/admin/check-session', (req, res) => {
+    console.log('Checking admin session:', req.session);
+    
+    if (req.session && req.session.user && req.session.user.role === 'admin') {
+        console.log('Admin session valid');
+        return res.status(200).json({ valid: true });
+    }
+    
+    console.log('Admin session invalid');
+    return res.status(401).json({ valid: false });
+});
+
+// Add this temporary debug route
+app.get('/debug-files', isAdmin, async (req, res) => {
+    try {
+        const allFiles = await File.find({});
+        const allUsers = await User.find({});
+        
+        console.log('All files in system:', allFiles);
+        console.log('All users in system:', allUsers);
+        
+        res.json({
+            files: allFiles,
+            users: allUsers
         });
     } catch (err) {
         console.error('Debug error:', err);
