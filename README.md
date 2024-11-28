@@ -6,7 +6,7 @@ Wong Ka Ho 13251975
 Tai Tsz Hin 13275125
 
 Application link: https://s381f-file-storage-system.onrender.com/
-
+github link: https://github.com/NickyOYip1/S381F_file_storage_system
 ********************************************
 # Login
 Through the login interface, user can access the file storage system by entering email and password.
