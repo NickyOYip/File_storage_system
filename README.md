@@ -67,75 +67,66 @@ Files maintain their original Sequential ID and Upload Date after renaming.
 - admin can delete any user from the admin home page
 
 ********************************************
-# Restful
-The system provides RESTful API endpoints:
+# RESTful API Commands (Windows CMD)
 
 1. GET /api/files/:email - Read all files
+   
    Success Example:
+   ```cmd
+   curl "http://s381f-file-storage-system.onrender.com/api/files/s1331448@live.hkmu.edu.hk"
    ```
-   GET /api/files/s1331448@live.hkmu.edu.hk
-   ```
+   
    Error Example:
-   ```
-   GET /api/files/nonexistent@email.com
+   ```cmd
+   curl "http://s381f-file-storage-system.onrender.com/api/files/nonexistent@email.com"
    ```
 
 2. POST /api/users - Create new user
+   
    Success Example:
+   ```cmd
+   curl -X POST "http://s381f-file-storage-system.onrender.com/api/users" ^
+   -H "Content-Type: application/json" ^
+   -d "{\"email\":\"test@example.com\",\"password\":\"password123\",\"role\":\"user\"}"
    ```
-   POST /api/users
-   Body: {
-       "email": "test@example.com",
-       "password": "password123",
-       "role": "user"
-   }
-   ```
+   
    Error Example:
-   ```
-   POST /api/users
-   Body: {
-       "email": "s1331448@live.hkmu.edu.hk",
-       "password": "123",
-       "role": "user"
-   }
+   ```cmd
+   curl -X POST "http://s381f-file-storage-system.onrender.com/api/users" ^
+   -H "Content-Type: application/json" ^
+   -d "{\"email\":\"s1331448@live.hkmu.edu.hk\",\"password\":\"123\",\"role\":\"user\"}"
    ```
 
 3. PUT /api/files - Update file name
+   
    Success Example:
+   ```cmd
+   curl -X PUT "http://s381f-file-storage-system.onrender.com/api/files" ^
+   -H "Content-Type: application/json" ^
+   -d "{\"email\":\"s1331448@live.hkmu.edu.hk\",\"fileId\":\"67489fba3d28950e56419832_4\",\"newFileName\":\"renamed_file.jpg\"}"
    ```
-   PUT /api/files
-   Body: {
-       "email": "s1331448@live.hkmu.edu.hk",
-       "fileId": "67489fba3d28950e56419832_4",
-       "newFileName": "renamed_file.jpg"
-   }
-   ```
+   
    Error Example:
-   ```
-   PUT /api/files
-   Body: {
-       "email": "s1331448@live.hkmu.edu.hk",
-       "fileId": "invalid_file_id",
-       "newFileName": "new.jpg"
-   }
+   ```cmd
+   curl -X PUT "http://s381f-file-storage-system.onrender.com/api/files" ^
+   -H "Content-Type: application/json" ^
+   -d "{\"email\":\"s1331448@live.hkmu.edu.hk\",\"fileId\":\"invalid_file_id\",\"newFileName\":\"new.jpg\"}"
    ```
 
 4. DELETE /api/files - Delete file
+   
    Success Example:
+   ```cmd
+   curl -X DELETE "http://s381f-file-storage-system.onrender.com/api/files" ^
+   -H "Content-Type: application/json" ^
+   -d "{\"email\":\"s1331448@live.hkmu.edu.hk\",\"fileId\":\"67489fba3d28950e56419832_4\"}"
    ```
-   DELETE /api/files
-   Body: {
-       "email": "s1331448@live.hkmu.edu.hk",
-       "fileId": "67489fba3d28950e56419832_4"
-   }
-   ```
+   
    Error Example:
-   ```
-   DELETE /api/files
-   Body: {
-       "email": "s1331448@live.hkmu.edu.hk",
-       "fileId": "nonexistent_file"
-   }
+   ```cmd
+   curl -X DELETE "http://s381f-file-storage-system.onrender.com/api/files" ^
+   -H "Content-Type: application/json" ^
+   -d "{\"email\":\"s1331448@live.hkmu.edu.hk\",\"fileId\":\"nonexistent_file\"}"
    ```
 
 Each endpoint follows RESTful principles with proper request/response handling.
