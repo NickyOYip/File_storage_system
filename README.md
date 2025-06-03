@@ -1,33 +1,3 @@
-IF [Achieved] = 1 AND [Target] = 1
-    THEN 0.5
-ELSEIF [Achieved] < 0.5 AND [Target] < [Achieved]
-    THEN [Target] - 0.01
-ELSEIF [Achieved] < 0.5 AND [Target] < 0.5 AND [Target] > [Achieved]
-    THEN [Achieved] - 0.01
-ELSEIF [Achieved] < 0.5 AND [Target] = [Achieved]
-    THEN [Achieved] - 0.01
-ELSEIF [Achieved] < 0.5 AND [Target] > 0.5
-    THEN [Achieved]
-ELSEIF [Achieved] < 0.5 AND [Target] = 0.5
-    THEN [Achieved]
-ELSEIF [Achieved] = 0.5 AND [Target] < 0.5
-    THEN [Target] - 0.01
-ELSEIF [Achieved] = 0.5 AND [Target] = 0.5
-    THEN 0.5 - 0.01
-ELSEIF [Achieved] = 0.5 AND [Target] > 0.5
-    THEN 0.5
-ELSEIF [Achieved] > 0.5 AND [Target] < 0.5
-    THEN [Target] - 0.01
-ELSEIF [Achieved] > 0.5 AND [Target] =  0.5
-    THEN 0.5 - 0.01
-ELSEIF [Achieved] > 0.5 AND [Target] > 0.5
-    THEN 0.5
-END
-
-
-
-
-
 File Storage System
 Group 55
 Name: 
